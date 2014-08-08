@@ -1,26 +1,35 @@
 #ifndef _EXECUTE_H_
 #define _EXECUTE_H_
-
+#include "Types.h"
 #define	WREG 	0xFE8
+
+uint32 getBitsAtOffset(uint32 data, int offset, int bitSize);
 
 int getInfo(unsigned int code);
 int executeInstruction(unsigned int code);
 int executeCarryStatus();
-int executeStatus(int data);
-int executeDestination(int destination, int address, int access, int data);
+int checkStatus(int data);
+int storeDestination(int destination, int address, int access, int data);
 int executeProgramCounter();
 int executeProgramCounterSkipIfClear(int data);
 int executeProgramCounterSkipIfSet(int data);
 
-int executeBCF(unsigned int code);
-int executeBSF(unsigned int code);
-int executeBTFSC(unsigned int code);
-int executeBTFSS(unsigned int code);
-int executeBTG(unsigned int code);
-int executeSUBWF(unsigned int code);
-int executeSUBWFB(unsigned int code);
-int executeSWAPF(unsigned int code);
-int executeTSTFSZ(unsigned int code);
-int executeXORWF(unsigned int code);
 
+int executeADDWF(unsigned int code);
+int executeANDWF(unsigned int code);
+int executeCLRF(unsigned int code);
+int executeCOMF(unsigned int code);
+int executeCPFSEQorexecuteCPFSLT(unsigned int code);
+int executeCPFSGT(unsigned int code);
+int executeCPFSEQ(unsigned int code);
+int executeCPFSLT(unsigned int code);
+int executeDECF(unsigned int code);
+int executeDECFSZ(unsigned int code);
+int executeDCFSNZ(unsigned int code);
+int executeINCF(unsigned int code);
+int executeINCFSZ(unsigned int code);
+int executeINFSNZ(unsigned int code);
+int executeIORWF(unsigned int code);
+int executeMOVF(unsigned int code);
+int executeMOVFF(unsigned int code);
 #endif //_EXECUTE_H_
