@@ -5,6 +5,7 @@
 
 ExecutionTable executionTable[64] = {
 	[0x09] = executeADDWF,
+	[0x08] = executeADDWFC,
 	[0x05] = executeANDWF,
 	[0x1A] = executeCLRF,
 	[0x07] = executeCOMF,
@@ -22,4 +23,5 @@ ExecutionTable executionTable[64] = {
 	[0x31] = executeMOVFF,
 	[0x32] = executeMOVFF,
 	[0x33] = executeMOVFF,
+	
 };

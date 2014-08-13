@@ -8,10 +8,11 @@ int address;
 int access;
 int bit;
 int data;
+int updateData;
 int destination;
 int programCounter = 0;
 int carry;
-
+int decimalCarry;
 
 uint32 maskTable[32] = { 	0x0, 
 							0x1, 0x3, 0x7, 0xf, 
@@ -47,103 +48,17 @@ void setBitsAtOffset(uint32 *dataPtr, uint32 dataToWrite, int offset, int bitSiz
 
 }
 
-
-void setNegativeFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] |= 0x10;
-}
-
-void clearNegativeFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] &= 0xef;
-}
-
-void setOverFlowFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] |= 0x08;
-}
-
-void clearOverFlowFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] &= 0xf7;
-}
-
-void setZeroFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] |= 0x04;
-}
-
-void clearZeroFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] &= 0xfb;
-}
-
-void setDigitalCarryFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] |= 0x02;
-}
-
-void clearDigitalCarryFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] &= 0xfd;
-}
-
-void setCarryFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] |= 0x01;
-}
-
-void clearCarryFlag(){
-	// - - - N OV Z DC C
-	fileRegisters[STATUS] &= 0xfe;
-}
-
-
-int checkStatus(int data){
-	// - - - N OV Z DC C
-	if(data == 0x0){
-		fileRegisters[STATUS] = 0x04;	// Zero
-	}else if(data < 0x0){
-		fileRegisters[STATUS] = 0x10;	// Negative
-	}else if((data & 0x01) == 1){
-		fileRegisters[STATUS] = 0x01;	// Carry
-	}else{
-		fileRegisters[STATUS] = 0x0;	// OV and DC
-	}
-	
-	return fileRegisters[STATUS];
-}
-
-
-
-
 int getInfo(unsigned int code){
 
-	address = code & 0xff;
-	access = ((code & 0x100)>>8);
-	bit = ((code & 0xE00)>>9);
-	destination = ((code & 0x200)>>9);
+	address = getBitsAtOffset(code,0,8);
+	access = getBitsAtOffset(code,8,1);
+	bit = getBitsAtOffset(code,9,3);
+	destination = getBitsAtOffset(code,9,1);
 	
 }
 
 int executeInstruction(unsigned int code){
-
 	executionTable[(code & 0xFC00)>>10](code);
-
-}
-
-
-
-int executeCarryStatus(){
-	
-	fileRegisters[STATUS] = fileRegisters[STATUS] & 0x01;
-	if(fileRegisters[STATUS] == 1){
-		carry = 0;
-	}else if(fileRegisters[STATUS] == 0){
-		carry = 1;
-	}
-	
-	return carry;
 }
 
 
@@ -158,8 +73,7 @@ int executeDestination(int destination, int address, int access, int data){
 		data = setFileRegData(address, access, data);
 	}
 	
-	return data;
-	
+	return data;	
 }
 
 int executeProgramCounter(){
@@ -197,56 +111,76 @@ int executeProgramCounterSkipIfSet(int data){
 	setProgramCounter(programCounter);
 	
 }
-								 //N 4bit
-								 //OV 3b
-								 //Z 2b
-								 //DC 1b
-								 //C 0b
-int executeADDWF(unsigned int code){
 
+int checkCarryStatus(int updateData){
+	if((updateData>>8) == 1){
+		fileRegisters[STATUS] |= 0x01;
+	}else{
+		fileRegisters[STATUS] &= 0xfe;
+	}
+}
+
+int checkZeroStatus(int updateData){
+	if((updateData & 0xff) == 0){
+		fileRegisters[STATUS] |= 0x04;
+	}else{
+		fileRegisters[STATUS] &= 0xfb;
+	}
+}
+
+int checkNegativeStatus(int updateData){
+	if((updateData>>7) == 1){
+		fileRegisters[STATUS] |= 0x10;
+	}else{
+		fileRegisters[STATUS] &= 0xef;
+	}
+}
+							
+int executeADDWF(unsigned int code){
+	//left ov and dc
 	getInfo(code);
 
 	data = getFileRegData(address,access);
-	data = data + (fileRegisters[WREG]);
+	updateData = data + (fileRegisters[WREG]);
 	
-	 if(((data & 0x10)>>4) == 1){
-		setNegativeFlag();
-	 }else{
-		clearNegativeFlag();
-	 }
-	 
-	 if(((data & 0x08)>>3) == 1){
-		setOverFlowFlag();
-	 }else{
-		clearOverFlowFlag();
-	 }
-	 
-	 if(((data & 0x04)>>2) == 1){
-		setZeroFlag();
-	 }else{
-		clearZeroFlag();
-	 }
-	 
-	 if(((data & 0x02)>>1) == 1){
-		setDigitalCarryFlag();
-	 }else{
-		clearDigitalCarryFlag();
-	 }
-	 
-	 if((data) == 1){
-		setCarryFlag();
-	 }else{
-		clearCarryFlag();
-	 }
+	checkCarryStatus(updateData);
+	checkZeroStatus(updateData);
+	checkNegativeStatus(updateData);
+		
+	updateData = executeDestination(destination, address, access, updateData);								
+	executeProgramCounter();
 	
-	data = executeDestination(destination, address, access, data);
-	
+	return updateData;
+}
 
-	 
-								
-	programCounter = executeProgramCounter();
+int withdrawCarryStatus(){
+	fileRegisters[STATUS] = getBitsAtOffset(fileRegisters[STATUS],0,1);
 	
-	return data;
+	if(fileRegisters[STATUS] == 1){
+		carry = 1;
+	}else{
+		carry = 0;
+	}
+	return carry;
+}
+
+int executeADDWFC(unsigned int code){
+
+	getInfo(code);
+	carry = withdrawCarryStatus();
+	data = getFileRegData(address,access);
+	updateData = data + (fileRegisters[WREG]) + carry;
+	
+	checkCarryStatus(updateData);
+	checkZeroStatus(updateData);
+	checkNegativeStatus(updateData);
+		
+	updateData = executeDestination(destination, address, access, updateData);								
+	executeProgramCounter();
+	
+	return updateData;
+	
+	
 }
 
 int executeANDWF(unsigned int code){
@@ -254,26 +188,30 @@ int executeANDWF(unsigned int code){
 	getInfo(code);
 
 	data = getFileRegData(address,access);
-	data = data & (fileRegisters[WREG]);
+	updateData = data & (fileRegisters[WREG]);
 	
-	data = executeDestination(destination, address, access, data);
+	checkZeroStatus(updateData);
+	checkNegativeStatus(updateData);
 	
-	programCounter = executeProgramCounter();
-	return data;
+	updateData = executeDestination(destination, address, access, updateData);
+	executeProgramCounter();
+	
+	return updateData;
 }
 
+
 int executeCLRF(unsigned int code){
-	
 	getInfo(code);
 
 	data = getFileRegData(address,access);
-	data = data & 0x00000000;
+	updateData = data & 0x00000000;
 	
-	data = executeDestination(destination, address, access, data);
+	checkZeroStatus(updateData);
 	
-	programCounter = executeProgramCounter();
+	updateData = executeDestination(destination, address, access, updateData);
+	executeProgramCounter();
 	
-	return data;
+	return updateData;
 }
 
 int executeCOMF(unsigned int code){
@@ -281,14 +219,17 @@ int executeCOMF(unsigned int code){
 	getInfo(code);
 
 	data = getFileRegData(address,access);
-	data = ~(data);
+	updateData = ~(data);
 	
-	data = executeDestination(destination, address, access, data);
+	checkZeroStatus(updateData);
+	checkNegativeStatus(updateData);
 	
-	programCounter = executeProgramCounter();
+	updateData = executeDestination(destination, address, access, updateData);
+	executeProgramCounter();
 	
-	return data;
+	return updateData;
 }
+
 
 int executeCPFSEQ(unsigned int code){
 
@@ -298,6 +239,25 @@ int executeCPFSEQ(unsigned int code){
 	
 	data = getFileRegData(address,access);
 	if(data == fileRegisters[WREG]){
+		programCounter +=4;
+		setProgramCounter(programCounter);
+	}else{
+		programCounter +=2;
+		setProgramCounter(programCounter);
+	}	
+	data = executeDestination(destination, address, access, data);
+	
+	return data;
+}
+
+int executeCPFSLT(unsigned int code){
+
+	getInfo(code);
+	
+	programCounter = getProgramCounter();
+	
+	data = getFileRegData(address,access);
+	if(data >= fileRegisters[WREG]){
 		programCounter +=4;
 		setProgramCounter(programCounter);
 	}else{
@@ -330,35 +290,23 @@ int executeCPFSGT(unsigned int code){
 	return data;
 }
 
-int executeCPFSLT(unsigned int code){
-
-	getInfo(code);
-	
-	programCounter = getProgramCounter();
-	
-	data = getFileRegData(address,access);
-	if(data >= fileRegisters[WREG]){
-		programCounter +=4;
-		setProgramCounter(programCounter);
-	}else{
-		programCounter +=2;
-		setProgramCounter(programCounter);
-	}	
-	
-	data = executeDestination(destination, address, access, data);
-	
-	return data;
-}
 
 int executeDECF(unsigned int code){
+	//ov dc
 	getInfo(code);
 
 	data = getFileRegData(address,access);
 	data -= 1;
+	updateData = data;
 	
-	data = executeDestination(destination, address, access, data);
-	programCounter = executeProgramCounter();
-	return data;
+	checkCarryStatus(updateData);
+	checkZeroStatus(updateData);
+	checkNegativeStatus(updateData);
+	
+	updateData = executeDestination(destination, address, access, updateData);
+	executeProgramCounter();
+	
+	return updateData;
 }
 
 int executeDECFSZ(unsigned int code){
@@ -399,16 +347,22 @@ int executeDCFSNZ(unsigned int code){
 	return data;
 }
 
+
 int executeINCF(unsigned int code){
+	//dc ov
 	getInfo(code);
 
 	data = getFileRegData(address,access);
 	data += 1;
+	updateData = data;
 	
-	data = executeDestination(destination, address, access, data);
+	checkCarryStatus(updateData);
+	checkZeroStatus(updateData);
+	checkNegativeStatus(updateData);
 	
-	programCounter = executeProgramCounter();
-	return data;
+	updateData = executeDestination(destination, address, access, updateData);
+	executeProgramCounter();
+	return updateData;
 }
 
 int executeINCFSZ(unsigned int code){
@@ -457,12 +411,15 @@ int executeIORWF(unsigned int code){
 	getInfo(code);
 
 	data = getFileRegData(address,access);
-	data = data | fileRegisters[WREG];
+	updateData = data | fileRegisters[WREG];
 	
-	data = executeDestination(destination, address, access, data);
+	checkZeroStatus(updateData);
+	checkNegativeStatus(updateData);
 	
-	programCounter = executeProgramCounter();
-	return data;
+	updateData = executeDestination(destination, address, access, updateData);
+	executeProgramCounter();
+	
+	return updateData;
 }
 
 int executeMOVF(unsigned int code){
@@ -470,11 +427,15 @@ int executeMOVF(unsigned int code){
 
 	data = getFileRegData(address,access);
 	fileRegisters[WREG]  = data;
-	data = fileRegisters[WREG];
-	data = executeDestination(destination, address, access, data);
+	updateData = fileRegisters[WREG];
 	
-	programCounter = executeProgramCounter();
-	return data;
+	checkZeroStatus(updateData);
+	checkNegativeStatus(updateData);
+	
+	updateData = executeDestination(destination, address, access, updateData);
+	executeProgramCounter();
+	
+	return updateData;
 }
 
 int executeMOVFF(unsigned int code){

@@ -13,9 +13,13 @@ int storeDestination(int destination, int address, int access, int data);
 int executeProgramCounter();
 int executeProgramCounterSkipIfClear(int data);
 int executeProgramCounterSkipIfSet(int data);
-
+int checkCarryStatus(int updateData);
+int checkZeroStatus(int updateData);
+int checkNegativeStatus(int updateData);
+int withdrawCarryStatus();
 
 int executeADDWF(unsigned int code);
+int executeADDWFC(unsigned int code);
 int executeANDWF(unsigned int code);
 int executeCLRF(unsigned int code);
 int executeCOMF(unsigned int code);
