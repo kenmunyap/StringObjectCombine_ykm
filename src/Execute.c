@@ -12,7 +12,8 @@ int updateData;
 int destination;
 int programCounter = 0;
 int carry;
-int decimalCarry;
+int digitalCarry;
+int overFlow;
 
 uint32 maskTable[32] = { 	0x0, 
 							0x1, 0x3, 0x7, 0xf, 
@@ -173,6 +174,54 @@ int checkNegativeStatus(int updateData){
 
 /**
  *
+ * Input: 
+ *		digitalCarry
+ *
+ * For: 
+ * 		Checking Digital Carry Status
+ *
+ * Return:
+ *		Non-return
+ *
+ **/
+int checkDigitalCarryStatus(int digitalCarry){
+	if(digitalCarry == 1){
+		fileRegisters[STATUS] |= 0x02;
+	}else{
+		fileRegisters[STATUS] &= 0xfd;
+	}
+}
+
+/**
+ *
+ * Input: 
+ *		OverFlow
+ *
+ * For: 
+ * 		Checking Over Flow
+ *
+ * Return:
+ *		Non-return
+ *
+ **/
+int checkOverFlow(int updataData, int overFlow){
+	if((updataData >> 8) == 1){
+		if(overFlow == 1){
+			fileRegisters[STATUS] &= 0xf7;
+		}else{
+			fileRegisters[STATUS] |= 0x08;
+		}
+	}else{
+		if(overFlow == 1){
+			fileRegisters[STATUS] |= 0x08;
+		}else{
+			fileRegisters[STATUS] &= 0xf7;
+		}
+	}
+}
+
+/**
+ *
  *	ADD W to f
  *
  *	Operation : 
@@ -189,16 +238,19 @@ int checkNegativeStatus(int updateData){
  *
  **/							
 int executeADDWF(unsigned int code){
-	//left ov and dc
 	getInfo(code);
 
 	data = getFileRegData(address,access);
 	updateData = data + (fileRegisters[WREG]);
+	digitalCarry = (((data & 0x0f) + (fileRegisters[WREG] & 0x0f))>>4);
+	overFlow = ((data & 0x7f) + (fileRegisters[WREG] & 0x7f))>>7;
 	
 	checkCarryStatus(updateData);
 	checkZeroStatus(updateData);
 	checkNegativeStatus(updateData);
-		
+	checkDigitalCarryStatus(digitalCarry);
+	checkOverFlow(updateData,overFlow);
+	
 	updateData = executeDestination(destination, address, access, updateData);								
 	executeProgramCounter();
 	
@@ -239,16 +291,19 @@ int withdrawCarryStatus(){
  *
  **/
 int executeADDWFC(unsigned int code){
-
 	getInfo(code);
 	carry = withdrawCarryStatus();
 	data = getFileRegData(address,access);
 	updateData = data + (fileRegisters[WREG]) + carry;
+	digitalCarry = (((data & 0x0f) + (fileRegisters[WREG] & 0x0f) + (carry))>>4);
+	overFlow = ((data & 0x7f) + (fileRegisters[WREG] & 0x7f) + carry)>>7;
 	
+	checkOverFlow(updateData,overFlow);
 	checkCarryStatus(updateData);
 	checkZeroStatus(updateData);
 	checkNegativeStatus(updateData);
-		
+	checkDigitalCarryStatus(digitalCarry);
+	
 	updateData = executeDestination(destination, address, access, updateData);								
 	executeProgramCounter();
 	
@@ -486,16 +541,21 @@ int executeCPFSGT(unsigned int code){
  *
  **/
 int executeDECF(unsigned int code){
-	//ov dc
+
 	getInfo(code);
 
 	data = getFileRegData(address,access);
+	digitalCarry = ((data & 0x0f) +((~(0x01)+1) & 0x0f)>>4);
+	overFlow = ((data & 0x7f) +((~(0x01)+1) & 0x7f))>>7;
 	data -= 1;
 	updateData = data;
+	
 	
 	checkCarryStatus(updateData);
 	checkZeroStatus(updateData);
 	checkNegativeStatus(updateData);
+	checkDigitalCarryStatus(digitalCarry);
+	checkOverFlow(updateData,overFlow);
 	
 	updateData = executeDestination(destination, address, access, updateData);
 	executeProgramCounter();
@@ -599,12 +659,16 @@ int executeINCF(unsigned int code){
 	getInfo(code);
 
 	data = getFileRegData(address,access);
+	digitalCarry = (((data & 0x0f) + 1)>>4);
+	overFlow = (((data & 0x7f) + 1))>>7;
 	data += 1;
 	updateData = data;
 	
 	checkCarryStatus(updateData);
 	checkZeroStatus(updateData);
 	checkNegativeStatus(updateData);
+	checkDigitalCarryStatus(digitalCarry);
+	checkOverFlow(updateData,overFlow);
 	
 	updateData = executeDestination(destination, address, access, updateData);
 	executeProgramCounter();

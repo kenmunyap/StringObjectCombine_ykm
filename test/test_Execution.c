@@ -38,7 +38,7 @@ void test_executeADDWF_is_in_WREG_and_ACCESS(){
 	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATH]);
 	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATU]); 
 	TEST_ASSERT_EQUAL(0x03, fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x05, fileRegisters[STATUS]);
+	TEST_ASSERT_EQUAL(0x0D, fileRegisters[STATUS]);
 }
 
 
@@ -47,8 +47,8 @@ void test_executeADDWF_is_in_WREG_and_BANKED(){
 	int data;
 	clearAllFileRegisters(fileRegisters);
 	fileRegisters[BSR] = 0xf;
-	fileRegisters[WREG] = 0x11;
-	fileRegisters[0xf31] = 0x11;
+	fileRegisters[WREG] = 0x19;
+	fileRegisters[0xf31] = 0x09;
 	fileRegisters[PCLATU] = 0x00;
 	fileRegisters[PCLATH] = 0x00;
 	fileRegisters[PCL] = 0x01;
@@ -60,11 +60,11 @@ void test_executeADDWF_is_in_WREG_and_BANKED(){
 	
 	
 	TEST_ASSERT_EQUAL(0x22, data);
-	TEST_ASSERT_EQUAL(0x11, fileRegisters[0xf31]);
+	TEST_ASSERT_EQUAL(0x09, fileRegisters[0xf31]);
 	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATH]);
 	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATU]); 
 	TEST_ASSERT_EQUAL(0x03, fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[STATUS]);
+	TEST_ASSERT_EQUAL(0x02, fileRegisters[STATUS]);
 }
 
 void test_executeADDWF_is_in_FileRegister_and_ACCESS(){
@@ -86,7 +86,7 @@ void test_executeADDWF_is_in_FileRegister_and_ACCESS(){
 	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATH]);
 	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATU]); 
 	TEST_ASSERT_EQUAL(0x03, fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x01, fileRegisters[STATUS]);
+	TEST_ASSERT_EQUAL(0x09, fileRegisters[STATUS]);
 }
 
 void test_executeADDWF_is_in_FileRegister_and_BANKED(){
@@ -121,8 +121,8 @@ void test_executeADDWFC_is_in_FileRegister_and_BANKED(){
 	int data;
 	clearAllFileRegisters(fileRegisters);
 	fileRegisters[BSR] = 0xf;
-	fileRegisters[WREG] = 0x11;
-	fileRegisters[0xf31] = 0x11;	
+	fileRegisters[WREG] = 0x89;
+	fileRegisters[0xf31] = 0x19;	
 	fileRegisters[PCLATU] = 0x00;
 	fileRegisters[PCLATH] = 0x00;
 	fileRegisters[PCL] = 0x01;
@@ -133,12 +133,12 @@ void test_executeADDWFC_is_in_FileRegister_and_BANKED(){
 	
 
 	
-	TEST_ASSERT_EQUAL(0x23, data);
-	TEST_ASSERT_EQUAL(0x11, fileRegisters[WREG]);
+	TEST_ASSERT_EQUAL(0xA3, data);
+	TEST_ASSERT_EQUAL(0x89, fileRegisters[WREG]);
 	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATH]);
 	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATU]); 
 	TEST_ASSERT_EQUAL(0x03, fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[STATUS]);
+	TEST_ASSERT_EQUAL(0x12, fileRegisters[STATUS]);
 }
 
 /*
@@ -359,7 +359,7 @@ void test_executeDECF_0x11_no_status(){
 	TEST_ASSERT_EQUAL_HEX16(0x00,fileRegisters[PCLATU]);
 	TEST_ASSERT_EQUAL_HEX16(0x00,fileRegisters[PCLATH]);
 	TEST_ASSERT_EQUAL_HEX16(0x03,fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[STATUS]);
+	TEST_ASSERT_EQUAL(0x0A, fileRegisters[STATUS]);
 }
 
 void test_executeDECF_0x01_zero_status(){
@@ -379,7 +379,7 @@ void test_executeDECF_0x01_zero_status(){
 	TEST_ASSERT_EQUAL_HEX16(0x00,fileRegisters[PCLATU]);
 	TEST_ASSERT_EQUAL_HEX16(0x00,fileRegisters[PCLATH]);
 	TEST_ASSERT_EQUAL_HEX16(0x03,fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x04, fileRegisters[STATUS]);
+	TEST_ASSERT_EQUAL(0x0E, fileRegisters[STATUS]);
 }
 
 
@@ -428,7 +428,7 @@ void test_executeINCF(){
 	int data;
 	clearAllFileRegisters(fileRegisters);
 	fileRegisters[BSR] = 0xf;
-	fileRegisters[0xf31] = 0x11;	
+	fileRegisters[0xf31] = 0x1F;	
 	fileRegisters[PCLATU] = 0x00;
 	fileRegisters[PCLATH] = 0x00;
 	fileRegisters[PCL] = 0x01;
@@ -436,11 +436,11 @@ void test_executeINCF(){
 	code = 0x2B31;
 	data = executeInstruction(code);
 	
-	TEST_ASSERT_EQUAL(0x12, data);
+	TEST_ASSERT_EQUAL(0x20, data);
 	TEST_ASSERT_EQUAL_HEX16(0x00,fileRegisters[PCLATU]);
 	TEST_ASSERT_EQUAL_HEX16(0x00,fileRegisters[PCLATH]);
 	TEST_ASSERT_EQUAL_HEX16(0x03,fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[STATUS]);
+	TEST_ASSERT_EQUAL(0x02, fileRegisters[STATUS]);
 }
 
 void test_executeINCFSZ_BANKED_and_File_Register(){

@@ -17,6 +17,8 @@ int checkCarryStatus(int updateData);
 int checkZeroStatus(int updateData);
 int checkNegativeStatus(int updateData);
 int withdrawCarryStatus();
+int checkDigitalCarryStatus(int digitalCarry);
+int checkOverFlow(int updataData, int overFlow);
 
 int executeADDWF(unsigned int code);
 int executeADDWFC(unsigned int code);
