@@ -61,7 +61,6 @@ int executeInstruction(unsigned int code){
 	executionTable[(code & 0xFC00)>>10](code);
 }
 
-
 int executeDestination(int destination, int address, int access, int data){
 	
 	if(destination == 0){
@@ -112,6 +111,18 @@ int executeProgramCounterSkipIfSet(int data){
 	
 }
 
+/**
+ *
+ * Input: 
+ *		updateData
+ *
+ * For: 
+ * 		Checking Carry Status
+ *
+ * Return:
+ *		Non-return
+ *
+ **/
 int checkCarryStatus(int updateData){
 	if((updateData>>8) == 1){
 		fileRegisters[STATUS] |= 0x01;
@@ -120,6 +131,18 @@ int checkCarryStatus(int updateData){
 	}
 }
 
+/**
+ *
+ * Input: 
+ *		updateData
+ *
+ * For: 
+ * 		Checking Zero Status
+ *
+ * Return:
+ *		Non-return
+ *
+ **/
 int checkZeroStatus(int updateData){
 	if((updateData & 0xff) == 0){
 		fileRegisters[STATUS] |= 0x04;
@@ -128,6 +151,18 @@ int checkZeroStatus(int updateData){
 	}
 }
 
+/**
+ *
+ * Input: 
+ *		updateData
+ *
+ * For: 
+ * 		Checking Negative Status
+ *
+ * Return:
+ *		Non-return
+ *
+ **/
 int checkNegativeStatus(int updateData){
 	if((updateData>>7) == 1){
 		fileRegisters[STATUS] |= 0x10;
@@ -135,7 +170,24 @@ int checkNegativeStatus(int updateData){
 		fileRegisters[STATUS] &= 0xef;
 	}
 }
-							
+
+/**
+ *
+ *	ADD W to f
+ *
+ *	Operation : 
+ *		(W)+(f)->dest
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		N,Z,C,OV,DC
+ *
+ **/							
 int executeADDWF(unsigned int code){
 	//left ov and dc
 	getInfo(code);
@@ -153,6 +205,11 @@ int executeADDWF(unsigned int code){
 	return updateData;
 }
 
+/**
+ *
+ * To check pervious data that had carry status!
+ *
+ **/
 int withdrawCarryStatus(){
 	fileRegisters[STATUS] = getBitsAtOffset(fileRegisters[STATUS],0,1);
 	
@@ -164,6 +221,23 @@ int withdrawCarryStatus(){
 	return carry;
 }
 
+/**
+ *
+ *	ADD W and Carry bit to f
+ *
+ *	Operation : 
+ *		(W) + (f) + (C) -> dest
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		N,Z,C,OV,DC
+ *
+ **/
 int executeADDWFC(unsigned int code){
 
 	getInfo(code);
@@ -183,6 +257,23 @@ int executeADDWFC(unsigned int code){
 	
 }
 
+/**
+ *
+ *	AND W with f
+ *
+ *	Operation : 
+ *		(W) .AND. (f)->dest
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		N,Z
+ *
+ **/
 int executeANDWF(unsigned int code){
 
 	getInfo(code);
@@ -199,7 +290,24 @@ int executeANDWF(unsigned int code){
 	return updateData;
 }
 
-
+/**
+ *
+ *	Clear f
+ *
+ *	Operation : 
+ *		000h->f
+ *		1->Z
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		Z
+ *
+ **/
 int executeCLRF(unsigned int code){
 	getInfo(code);
 
@@ -214,6 +322,23 @@ int executeCLRF(unsigned int code){
 	return updateData;
 }
 
+/**
+ *
+ *	Complement f
+ *
+ *	Operation : 
+ *		~(f)->dest
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		N,Z
+ *
+ **/
 int executeCOMF(unsigned int code){
 
 	getInfo(code);
@@ -230,7 +355,24 @@ int executeCOMF(unsigned int code){
 	return updateData;
 }
 
-
+/**
+ *
+ *	Compare f with W, skip if f=W
+ *
+ *	Operation : 
+ *		(f)-(W)
+ *		skip if (f) = (W)
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		data
+ *
+ *	Status Affect:
+ *		None
+ *
+ **/
 int executeCPFSEQ(unsigned int code){
 
 	getInfo(code);
@@ -250,6 +392,24 @@ int executeCPFSEQ(unsigned int code){
 	return data;
 }
 
+/**
+ *
+ *	Compare f with W,skip if f<W
+ *
+ *	Operation : 
+ *		(f)-(W),
+ *		skip if (f)<(W)
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		None
+ *
+ **/
 int executeCPFSLT(unsigned int code){
 
 	getInfo(code);
@@ -270,6 +430,24 @@ int executeCPFSLT(unsigned int code){
 	return data;
 }
 
+/**
+ *
+ *	Compare f with W,skip if f>W
+ *
+ *	Operation : 
+ *		(f)-(W),
+ *		skip if (f)>(W)
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		None
+ *
+ **/
 int executeCPFSGT(unsigned int code){
 
 	getInfo(code);
@@ -290,7 +468,23 @@ int executeCPFSGT(unsigned int code){
 	return data;
 }
 
-
+/**
+ *
+ *	Decrement f
+ *
+ *	Operation : 
+ *		(f)-1 ->dest
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		data
+ *
+ *	Status Affect:
+ *		N,Z,C,OV,DC
+ *
+ **/
 int executeDECF(unsigned int code){
 	//ov dc
 	getInfo(code);
@@ -309,6 +503,24 @@ int executeDECF(unsigned int code){
 	return updateData;
 }
 
+/**
+ *
+ *	Decrement f,skip if 0
+ *
+ *	Operation : 
+ *		(f) - 1 ->dest
+ * 		skip if result = 0
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		None
+ *
+ **/
 int executeDECFSZ(unsigned int code){
 	getInfo(code);
 	programCounter = getProgramCounter();
@@ -328,6 +540,24 @@ int executeDECFSZ(unsigned int code){
 	return data;
 }
 
+/**
+ *
+ *	Decrement f, skip if not 0
+ *
+ *	Operation : 
+ *		(f) - 1 ->dest
+ *      skip if result != 0
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		None
+ *
+ **/
 int executeDCFSNZ(unsigned int code){
 	getInfo(code);
 	programCounter = getProgramCounter();
@@ -347,7 +577,23 @@ int executeDCFSNZ(unsigned int code){
 	return data;
 }
 
-
+/**
+ *
+ *	Increment f
+ *
+ *	Operation : 
+ *		(f) + 1 -> dest
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		N,Z,C,DC,OV
+ *
+ **/
 int executeINCF(unsigned int code){
 	//dc ov
 	getInfo(code);
@@ -365,6 +611,24 @@ int executeINCF(unsigned int code){
 	return updateData;
 }
 
+/**
+ *
+ *	Increment f, skip if 0
+ *
+ *	Operation : 
+ *		(f) + 1 ->dest
+ *		skip if result = 0
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		None
+ *
+ **/
 int executeINCFSZ(unsigned int code){
 	int value;
 	getInfo(code);
@@ -386,6 +650,24 @@ int executeINCFSZ(unsigned int code){
 	return data;
 }
 
+/**
+ *
+ *	Increment f,skip if not 0
+ *
+ *	Operation : 
+ *		(f) + 1 ->dest
+ *		skip if result != 0
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		None
+ *
+ **/
 int executeINFSNZ(unsigned int code){
 	int value;
 	getInfo(code);
@@ -407,6 +689,23 @@ int executeINFSNZ(unsigned int code){
 	return data;
 }
 
+/**
+ *
+ *	Inclusive OR W with f
+ *
+ *	Operation : 
+ *		(W).OR.(f) -> dest
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		N,Z
+ *
+ **/
 int executeIORWF(unsigned int code){
 	getInfo(code);
 
@@ -422,6 +721,23 @@ int executeIORWF(unsigned int code){
 	return updateData;
 }
 
+/**
+ *
+ *	Move f
+ *
+ *	Operation : 
+ *		F->dest
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *	
+ *	Return :
+ *		updateData
+ *
+ *	Status Affect:
+ *		N,Z
+ *
+ **/
 int executeMOVF(unsigned int code){
 	getInfo(code);
 
@@ -438,6 +754,20 @@ int executeMOVF(unsigned int code){
 	return updateData;
 }
 
+/**
+ *
+ *	Move source file to destination file
+ *
+ *	Operation : 
+ *		Fs->Fd
+ *
+ *	Input :
+ *		code is the opcode for instruction word
+ *
+ *	Status Affect:
+ *		None
+ *
+ **/
 int executeMOVFF(unsigned int code){
 
 	unsigned int sourceAddress,destAddress;
@@ -452,7 +782,11 @@ int executeMOVFF(unsigned int code){
 	return 1;
 }
 
-
+/**
+ *
+ * To consider CPFSEQ or CPFSLT instruction to be taken!
+ *
+ **/
 int executeCPFSEQorexecuteCPFSLT(unsigned int code){
 	int instruction = (code&0xff00)>>8;
 	
