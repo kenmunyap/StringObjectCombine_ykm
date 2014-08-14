@@ -262,7 +262,7 @@ int executeADDWF(unsigned int code){
  * To check pervious data that had carry status!
  *
  **/
-int withdrawCarryStatus(){
+int withdrawPerviousCarryStatus(){
 	fileRegisters[STATUS] = getBitsAtOffset(fileRegisters[STATUS],0,1);
 	
 	if(fileRegisters[STATUS] == 1){
@@ -292,7 +292,7 @@ int withdrawCarryStatus(){
  **/
 int executeADDWFC(unsigned int code){
 	getInfo(code);
-	carry = withdrawCarryStatus();
+	carry = withdrawPerviousCarryStatus();
 	data = getFileRegData(address,access);
 	updateData = data + (fileRegisters[WREG]) + carry;
 	digitalCarry = (((data & 0x0f) + (fileRegisters[WREG] & 0x0f) + (carry))>>4);
