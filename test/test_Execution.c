@@ -3,6 +3,7 @@
 #include "ExecutionTable.h"
 #include "Execute.h"
 #include "Types.h"
+
 void setUp(void){}
 void tearDown(void){}
 
@@ -13,105 +14,6 @@ void test_setBitsAtOffset(){
 	TEST_ASSERT_EQUAL_HEX32(0x1F56,value);
 }
 
-/*
-*	checking ADDWF
-*/
-
-void test_executeADDWF_is_in_WREG_and_ACCESS(){
-	int code;
-	int data;
-	clearAllFileRegisters(fileRegisters);
-
-	fileRegisters[WREG] = 0x80;			
-	fileRegisters[0x31] = 0x80;
-	fileRegisters[PCLATU] = 0x00;
-	fileRegisters[PCLATH] = 0x00;
-	fileRegisters[PCL] = 0x01;
-
-	code = 0x2431;
-	data = executeInstruction(code);
-	
-
-	
-	TEST_ASSERT_EQUAL(0x00, data);
-	TEST_ASSERT_EQUAL(0x80, fileRegisters[0x31]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATH]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATU]); 
-	TEST_ASSERT_EQUAL(0x03, fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x0D, fileRegisters[STATUS]);
-}
-
-
-void test_executeADDWF_is_in_WREG_and_BANKED(){
-	int code;
-	int data;
-	clearAllFileRegisters(fileRegisters);
-	fileRegisters[BSR] = 0xf;
-	fileRegisters[WREG] = 0x19;
-	fileRegisters[0xf31] = 0x09;
-	fileRegisters[PCLATU] = 0x00;
-	fileRegisters[PCLATH] = 0x00;
-	fileRegisters[PCL] = 0x01;
-	
-
-	code = 0x2531;
-	data = executeInstruction(code);
-	
-	
-	
-	TEST_ASSERT_EQUAL(0x22, data);
-	TEST_ASSERT_EQUAL(0x09, fileRegisters[0xf31]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATH]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATU]); 
-	TEST_ASSERT_EQUAL(0x03, fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x02, fileRegisters[STATUS]);
-}
-
-void test_executeADDWF_is_in_FileRegister_and_ACCESS(){
-	int code;
-	int data;
-	clearAllFileRegisters(fileRegisters);
-	fileRegisters[WREG] = 0xA1;
-	fileRegisters[0x31] = 0x90;
-	fileRegisters[PCLATU] = 0x00;
-	fileRegisters[PCLATH] = 0x00;
-	fileRegisters[PCL] = 0x01;
-
-	code = 0x2631;
-	data = executeInstruction(code);
-	
-	
-	TEST_ASSERT_EQUAL(0x31, data);
-	TEST_ASSERT_EQUAL(0xA1, fileRegisters[WREG]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATH]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATU]); 
-	TEST_ASSERT_EQUAL(0x03, fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x09, fileRegisters[STATUS]);
-}
-
-void test_executeADDWF_is_in_FileRegister_and_BANKED(){
-	int code;
-	int data;
-	clearAllFileRegisters(fileRegisters);
-	fileRegisters[BSR] = 0xf;
-	fileRegisters[WREG] = 0x11;
-	fileRegisters[0xf31] = 0x11;	
-	fileRegisters[PCLATU] = 0x00;
-	fileRegisters[PCLATH] = 0x00;
-	fileRegisters[PCL] = 0x01;
-	
-	code = 0x2731;
-	data = executeInstruction(code);
-	
-
-	
-	TEST_ASSERT_EQUAL(0x22, data);
-	TEST_ASSERT_EQUAL(0x11, fileRegisters[WREG]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATH]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[PCLATU]); 
-	TEST_ASSERT_EQUAL(0x03, fileRegisters[PCL]);
-	TEST_ASSERT_EQUAL(0x00, fileRegisters[STATUS]);
-}
 
 /*
 *  checking ADDWFC

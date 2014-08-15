@@ -10,9 +10,9 @@ int executeInstruction(unsigned int code);
 int executeCarryStatus();
 int checkStatus(int data);
 int storeDestination(int destination, int address, int access, int data);
-int executeProgramCounter();
-int executeProgramCounterSkipIfClear(int data);
-int executeProgramCounterSkipIfSet(int data);
+void updateProgramCounter();
+void updateProgramCounterSkipIfClear(int data);
+void updateProgramCounterSkipIfSet(int data);
 int checkCarryStatus(int updateData);
 int checkZeroStatus(int updateData);
 int checkNegativeStatus(int updateData);
@@ -38,4 +38,5 @@ int executeINFSNZ(unsigned int code);
 int executeIORWF(unsigned int code);
 int executeMOVF(unsigned int code);
 int executeMOVFF(unsigned int code);
+
 #endif //_EXECUTE_H_

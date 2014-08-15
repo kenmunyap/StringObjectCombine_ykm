@@ -4,16 +4,60 @@
 #include "Execute.h"
 #include "Types.h"
 
-int address;
-int access;
-int bit;
-int data;
-int updateData;
-int destination;
-int programCounter = 0;
-int carry;
-int digitalCarry;
-int overFlow;
+
+
+typedef unsigned int uint32;
+typedef unsigned short int uint16;
+
+typedef struct afInstruction{
+ union{
+	uint32 raw;
+	struct{
+		uint32 address:8;
+		uint32 access:1;
+		uint32 opcode:7;
+		uint32 undefined:16;
+	}fragments;
+ }code;
+}afInstruction;
+
+typedef struct dafInstruction{
+ union{
+	uint32 raw;
+	struct{
+		uint32 address:8;
+		uint32 access:1;
+		uint32 destinationBit:1;
+		uint32 opcode:6;
+		uint32 undefined:16;
+	}fragments;
+ }code;
+}dafInstruction;
+
+typedef struct bafInstruction{
+ union{
+	uint32 raw;
+	struct{
+		uint32 address:8;
+		uint32 access:1;
+		uint32 bits:3;
+		uint32 opcode:4;
+		uint32 undefined:16;
+	}fragments;
+ }code;
+}bafInstruction;
+
+typedef struct ffInstruction{
+ union{
+	uint32 raw;
+	struct{
+		uint32 srcAddress:12;
+		uint32 opcode:4;
+		uint32 destAddress:12;
+		uint32 nop:4;
+	}fragments;
+ }code;
+}ffInstruction;
 
 uint32 maskTable[32] = { 	0x0, 
 							0x1, 0x3, 0x7, 0xf, 
@@ -49,22 +93,15 @@ void setBitsAtOffset(uint32 *dataPtr, uint32 dataToWrite, int offset, int bitSiz
 
 }
 
-int getInfo(unsigned int code){
 
-	address = getBitsAtOffset(code,0,8);
-	access = getBitsAtOffset(code,8,1);
-	bit = getBitsAtOffset(code,9,3);
-	destination = getBitsAtOffset(code,9,1);
-	
-}
 
 int executeInstruction(unsigned int code){
 	executionTable[(code & 0xFC00)>>10](code);
 }
 
-int executeDestination(int destination, int address, int access, int data){
+int storeDestination(int destinationBit, int address, int access, int data){
 	
-	if(destination == 0){
+	if(destinationBit == 0){
 		fileRegisters[WREG] = data;
 		data = fileRegisters[WREG];
 	}else{
@@ -76,40 +113,66 @@ int executeDestination(int destination, int address, int access, int data){
 	return data;	
 }
 
-int executeProgramCounter(){
-
+/**
+ *
+ *	Update the program counter + 2 from previous program counter
+ *
+ **/
+void updateProgramCounter(){
+	int programCounter;
+	
 	programCounter = getProgramCounter();
 	programCounter += 2;
 	setProgramCounter(programCounter);
-	
+
 }
 
-int executeProgramCounterSkipIfClear(int data){
-
-	programCounter = getProgramCounter();
+/**
+ *
+ *	Update the program counter + 4 from previous program counter if data is 0
+ *	otherwise update program counter + 2
+ *
+ *	Input :
+ *		data is the data after the operation
+ *
+ **/
+void updateProgramCounterSkipIfClear(int data){
+	int programCounter;
 	
+	programCounter = getProgramCounter();
+
 	if(data == 0){
 		programCounter += 4;
 	}else{
 		programCounter += 2;
 	}
-	
+
 	setProgramCounter(programCounter);
-	
+
 }
 
-int executeProgramCounterSkipIfSet(int data){
-
-	programCounter = getProgramCounter();
+/**
+ *
+ *	Update the program counter + 2 from previous program counter if data is 0
+ *	otherwise update program counter + 4
+ *
+ *	Input :
+ *		data is the data after the operation
+ *
+ **/
+void updateProgramCounterSkipIfSet(int data){
+	int programCounter;
 	
+	programCounter = getProgramCounter();
+
 	if(data == 0){
 		programCounter += 2;
 	}else{
 		programCounter += 4;
 	}
-	
+
 	setProgramCounter(programCounter);
-	
+
 }
 
 /**
@@ -220,42 +283,7 @@ int checkOverFlow(int updataData, int overFlow){
 	}
 }
 
-/**
- *
- *	ADD W to f
- *
- *	Operation : 
- *		(W)+(f)->dest
- *
- *	Input :
- *		code is the opcode for instruction word
- *	
- *	Return :
- *		updateData
- *
- *	Status Affect:
- *		N,Z,C,OV,DC
- *
- **/							
-int executeADDWF(unsigned int code){
-	getInfo(code);
 
-	data = getFileRegData(address,access);
-	updateData = data + (fileRegisters[WREG]);
-	digitalCarry = (((data & 0x0f) + (fileRegisters[WREG] & 0x0f))>>4);
-	overFlow = ((data & 0x7f) + (fileRegisters[WREG] & 0x7f))>>7;
-	
-	checkCarryStatus(updateData);
-	checkZeroStatus(updateData);
-	checkNegativeStatus(updateData);
-	checkDigitalCarryStatus(digitalCarry);
-	checkOverFlow(updateData,overFlow);
-	
-	updateData = executeDestination(destination, address, access, updateData);								
-	executeProgramCounter();
-	
-	return updateData;
-}
 
 /**
  *
@@ -263,6 +291,7 @@ int executeADDWF(unsigned int code){
  *
  **/
 int withdrawPerviousCarryStatus(){
+	int carry;
 	fileRegisters[STATUS] = getBitsAtOffset(fileRegisters[STATUS],0,1);
 	
 	if(fileRegisters[STATUS] == 1){
@@ -291,10 +320,21 @@ int withdrawPerviousCarryStatus(){
  *
  **/
 int executeADDWFC(unsigned int code){
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
+	int carry;
+	int digitalCarry;
+	int overFlow;
+	int updateData;
+	int data;
+
+	
+	
 	carry = withdrawPerviousCarryStatus();
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address,inst.code.fragments.access);
 	updateData = data + (fileRegisters[WREG]) + carry;
+	
 	digitalCarry = (((data & 0x0f) + (fileRegisters[WREG] & 0x0f) + (carry))>>4);
 	overFlow = ((data & 0x7f) + (fileRegisters[WREG] & 0x7f) + carry)>>7;
 	
@@ -304,8 +344,8 @@ int executeADDWFC(unsigned int code){
 	checkNegativeStatus(updateData);
 	checkDigitalCarryStatus(digitalCarry);
 	
-	updateData = executeDestination(destination, address, access, updateData);								
-	executeProgramCounter();
+	updateData = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, updateData);							
+	updateProgramCounter();
 	
 	return updateData;
 	
@@ -331,16 +371,23 @@ int executeADDWFC(unsigned int code){
  **/
 int executeANDWF(unsigned int code){
 
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
 
-	data = getFileRegData(address,access);
+
+	int updateData;
+	int data;
+
+
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	updateData = data & (fileRegisters[WREG]);
 	
 	checkZeroStatus(updateData);
 	checkNegativeStatus(updateData);
 	
-	updateData = executeDestination(destination, address, access, updateData);
-	executeProgramCounter();
+	updateData = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, updateData);
+	updateProgramCounter();
 	
 	return updateData;
 }
@@ -364,15 +411,26 @@ int executeANDWF(unsigned int code){
  *
  **/
 int executeCLRF(unsigned int code){
-	getInfo(code);
+	int destinationBit;
+	int updateData;
+	int data;
+	
+	afInstruction inst;
+	inst.code.raw = code;
+	
 
-	data = getFileRegData(address,access);
+
+
+
+
+
+	data = getFileRegData(inst.code.fragments.address,inst.code.fragments.access);
 	updateData = data & 0x00000000;
 	
 	checkZeroStatus(updateData);
 	
-	updateData = executeDestination(destination, address, access, updateData);
-	executeProgramCounter();
+	updateData = storeDestination(destinationBit, inst.code.fragments.address, inst.code.fragments.access, updateData);
+	updateProgramCounter();
 	
 	return updateData;
 }
@@ -396,16 +454,24 @@ int executeCLRF(unsigned int code){
  **/
 int executeCOMF(unsigned int code){
 
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
 
-	data = getFileRegData(address,access);
+
+
+	int updateData;
+	int data;
+
+
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	updateData = ~(data);
 	
 	checkZeroStatus(updateData);
 	checkNegativeStatus(updateData);
 	
-	updateData = executeDestination(destination, address, access, updateData);
-	executeProgramCounter();
+	updateData = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, updateData);
+	updateProgramCounter();
 	
 	return updateData;
 }
@@ -430,11 +496,17 @@ int executeCOMF(unsigned int code){
  **/
 int executeCPFSEQ(unsigned int code){
 
-	getInfo(code);
+	int destinationBit;
+	
+	afInstruction inst;
+	inst.code.raw = code;
+	
+
+	int programCounter;
+	int data;
 	
 	programCounter = getProgramCounter();
-	
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address,inst.code.fragments.access);
 	if(data == fileRegisters[WREG]){
 		programCounter +=4;
 		setProgramCounter(programCounter);
@@ -442,7 +514,7 @@ int executeCPFSEQ(unsigned int code){
 		programCounter +=2;
 		setProgramCounter(programCounter);
 	}	
-	data = executeDestination(destination, address, access, data);
+	data = storeDestination(destinationBit, inst.code.fragments.address, inst.code.fragments.access, data);
 	
 	return data;
 }
@@ -467,11 +539,20 @@ int executeCPFSEQ(unsigned int code){
  **/
 int executeCPFSLT(unsigned int code){
 
-	getInfo(code);
+	int destinationBit;
 	
+	afInstruction inst;
+	inst.code.raw = code;
+	
+
+
+	int programCounter;
+	int data;
+
+
 	programCounter = getProgramCounter();
 	
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address,inst.code.fragments.access);
 	if(data >= fileRegisters[WREG]){
 		programCounter +=4;
 		setProgramCounter(programCounter);
@@ -480,7 +561,7 @@ int executeCPFSLT(unsigned int code){
 		setProgramCounter(programCounter);
 	}	
 	
-	data = executeDestination(destination, address, access, data);
+	data = storeDestination(destinationBit, inst.code.fragments.address, inst.code.fragments.access, data);
 	
 	return data;
 }
@@ -505,11 +586,17 @@ int executeCPFSLT(unsigned int code){
  **/
 int executeCPFSGT(unsigned int code){
 
-	getInfo(code);
+	int destinationBit;
+	
+	afInstruction inst;
+	inst.code.raw = code;
+	
+	int programCounter;
+	int data;
 	
 	programCounter = getProgramCounter();
 	
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address,inst.code.fragments.access);
 	if(data <= fileRegisters[WREG]){
 		programCounter +=4;
 		setProgramCounter(programCounter);
@@ -518,7 +605,7 @@ int executeCPFSGT(unsigned int code){
 		setProgramCounter(programCounter);
 	}	
 	
-	data = executeDestination(destination, address, access, data);
+	data = storeDestination(destinationBit, inst.code.fragments.address, inst.code.fragments.access, data);
 	
 	return data;
 }
@@ -542,9 +629,18 @@ int executeCPFSGT(unsigned int code){
  **/
 int executeDECF(unsigned int code){
 
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
 
-	data = getFileRegData(address,access);
+	int digitalCarry;
+	int overFlow;
+	int programCounter;
+	int updateData;
+	int data;
+
+
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	digitalCarry = ((data & 0x0f) +((~(0x01)+1) & 0x0f)>>4);
 	overFlow = ((data & 0x7f) +((~(0x01)+1) & 0x7f))>>7;
 	data -= 1;
@@ -557,8 +653,8 @@ int executeDECF(unsigned int code){
 	checkDigitalCarryStatus(digitalCarry);
 	checkOverFlow(updateData,overFlow);
 	
-	updateData = executeDestination(destination, address, access, updateData);
-	executeProgramCounter();
+	updateData = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, updateData);
+	updateProgramCounter();
 	
 	return updateData;
 }
@@ -582,9 +678,19 @@ int executeDECF(unsigned int code){
  *
  **/
 int executeDECFSZ(unsigned int code){
-	getInfo(code);
+
+	dafInstruction inst;
+	inst.code.raw = code;
+	
+
+
+
+	int programCounter;
+	int data;
+
+	
 	programCounter = getProgramCounter();
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	data -= 1;
 	
 	if(data == 0x00){
@@ -595,7 +701,7 @@ int executeDECFSZ(unsigned int code){
 		setProgramCounter(programCounter);
 	}
 	
-	data = executeDestination(destination, address, access, data);
+	data = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, data);
 	
 	return data;
 }
@@ -619,9 +725,15 @@ int executeDECFSZ(unsigned int code){
  *
  **/
 int executeDCFSNZ(unsigned int code){
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
+	int programCounter;
+	int data;
+
+	
 	programCounter = getProgramCounter();
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	data -= 1;
 	
 	if(data != 0x00){
@@ -632,7 +744,7 @@ int executeDCFSNZ(unsigned int code){
 		setProgramCounter(programCounter);
 	}
 	
-	data = executeDestination(destination, address, access, data);
+	data = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, data);
 	
 	return data;
 }
@@ -655,10 +767,17 @@ int executeDCFSNZ(unsigned int code){
  *
  **/
 int executeINCF(unsigned int code){
-	//dc ov
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
 
-	data = getFileRegData(address,access);
+	int digitalCarry;
+	int overFlow;
+	int updateData;
+	int data;
+
+
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	digitalCarry = (((data & 0x0f) + 1)>>4);
 	overFlow = (((data & 0x7f) + 1))>>7;
 	data += 1;
@@ -670,8 +789,8 @@ int executeINCF(unsigned int code){
 	checkDigitalCarryStatus(digitalCarry);
 	checkOverFlow(updateData,overFlow);
 	
-	updateData = executeDestination(destination, address, access, updateData);
-	executeProgramCounter();
+	updateData = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, updateData);
+	updateProgramCounter();
 	return updateData;
 }
 
@@ -695,9 +814,17 @@ int executeINCF(unsigned int code){
  **/
 int executeINCFSZ(unsigned int code){
 	int value;
-	getInfo(code);
+	
+	dafInstruction inst;
+	inst.code.raw = code;
+	
+
+	int programCounter;
+	int data;
+
+	
 	programCounter = getProgramCounter();
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	data += 1;
 	value = data & 0x000;
 	
@@ -709,7 +836,7 @@ int executeINCFSZ(unsigned int code){
 		setProgramCounter(programCounter);
 	}
 	
-	data = executeDestination(destination, address, access, data);
+	data = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, data);
 	
 	return data;
 }
@@ -734,9 +861,16 @@ int executeINCFSZ(unsigned int code){
  **/
 int executeINFSNZ(unsigned int code){
 	int value;
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
+
+	int programCounter;
+	int data;
+
+	
 	programCounter = getProgramCounter();
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	data += 1;
 	value = data & 0x000;
 	
@@ -748,7 +882,7 @@ int executeINFSNZ(unsigned int code){
 		setProgramCounter(programCounter);
 	}
 	
-	data = executeDestination(destination, address, access, data);
+	data = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, data);
 	
 	return data;
 }
@@ -771,16 +905,25 @@ int executeINFSNZ(unsigned int code){
  *
  **/
 int executeIORWF(unsigned int code){
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
 
-	data = getFileRegData(address,access);
+
+
+
+	int updateData;
+	int data;
+
+
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	updateData = data | fileRegisters[WREG];
 	
 	checkZeroStatus(updateData);
 	checkNegativeStatus(updateData);
 	
-	updateData = executeDestination(destination, address, access, updateData);
-	executeProgramCounter();
+	updateData = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, updateData);
+	updateProgramCounter();
 	
 	return updateData;
 }
@@ -803,17 +946,21 @@ int executeIORWF(unsigned int code){
  *
  **/
 int executeMOVF(unsigned int code){
-	getInfo(code);
+	dafInstruction inst;
+	inst.code.raw = code;
+	
+	int updateData;
+	int data;
 
-	data = getFileRegData(address,access);
+	data = getFileRegData(inst.code.fragments.address, inst.code.fragments.access);
 	fileRegisters[WREG]  = data;
 	updateData = fileRegisters[WREG];
 	
 	checkZeroStatus(updateData);
 	checkNegativeStatus(updateData);
 	
-	updateData = executeDestination(destination, address, access, updateData);
-	executeProgramCounter();
+	updateData = storeDestination(inst.code.fragments.destinationBit, inst.code.fragments.address, inst.code.fragments.access, updateData);
+	updateProgramCounter();
 	
 	return updateData;
 }
@@ -833,15 +980,17 @@ int executeMOVF(unsigned int code){
  *
  **/
 int executeMOVFF(unsigned int code){
-
+	
 	unsigned int sourceAddress,destAddress;
-
+	ffInstruction inst;
+	inst.code.raw = code;
+	
 	sourceAddress = getBitsAtOffset(code, 0, 12);
 	destAddress = getBitsAtOffset(code, 16, 12);
 	
 	fileRegisters[destAddress] = fileRegisters[sourceAddress]; 
 	
-	programCounter = executeProgramCounter();
+	updateProgramCounter();
 
 	return 1;
 }

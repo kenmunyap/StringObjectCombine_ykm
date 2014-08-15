@@ -4,7 +4,6 @@
 #include "Execute.h"
 
 ExecutionTable executionTable[64] = {
-	[0x09] = executeADDWF,
 	[0x08] = executeADDWFC,
 	[0x05] = executeANDWF,
 	[0x1A] = executeCLRF,
